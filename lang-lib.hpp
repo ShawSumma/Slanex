@@ -40,6 +40,10 @@ namespace lang
             {
                 return list_compare(any_fast<std::vector<anything>>(left), any_fast<std::vector<anything>>(right));
             }
+            if (is_a_any<ANY_TYPE_DATA>(left))
+            {
+                return false;
+            }
             return false;
         }
 
@@ -563,6 +567,10 @@ namespace lang
                     ss << ")";
                     // end the table
                 }
+                else if (is_a_any<ANY_TYPE_DATA>(cur))
+                {
+                    ss << "<data>";
+                }
                 else
                 // cannot change type given into string
                 {
@@ -704,6 +712,13 @@ namespace lang
         fn_ret fn_seconds(state *st, aty2 args)
         // unix time since epoch
         {
+            uint64_t size = args.size();
+            if (size != 0)
+            {
+                return make_any<ANY_TYPE_ERROR,errors::str_error>(
+                    "function time-seconds takes exactly no arguments"s
+                );
+            }
             std::chrono::duration curtime = std::chrono::high_resolution_clock::now().time_since_epoch();
             std::chrono::seconds secs = std::chrono::duration_cast<std::chrono::seconds>(curtime);
             mpz_int ret = secs.count();
@@ -713,6 +728,13 @@ namespace lang
         fn_ret fn_milliseconds(state *st, aty2 args)
         // unix time since epoch
         {
+            uint64_t size = args.size();
+            if (size != 0)
+            {
+                return make_any<ANY_TYPE_ERROR,errors::str_error>(
+                    "function time-milliseconds takes exactly no arguments"s
+                );
+            }
             std::chrono::duration curtime = std::chrono::high_resolution_clock::now().time_since_epoch();
             std::chrono::milliseconds secs = std::chrono::duration_cast<std::chrono::milliseconds>(curtime);
             mpz_int ret = secs.count();
@@ -722,6 +744,13 @@ namespace lang
         fn_ret fn_microseconds(state *st, aty2 args)
         // unix time since epoch
         {
+            uint64_t size = args.size();
+            if (size != 0)
+            {
+                return make_any<ANY_TYPE_ERROR,errors::str_error>(
+                    "function time-microseconds takes exactly no arguments"s
+                );
+            }
             std::chrono::duration curtime = std::chrono::high_resolution_clock::now().time_since_epoch();
             std::chrono::microseconds secs = std::chrono::duration_cast<std::chrono::microseconds>(curtime);
             mpz_int ret = secs.count();
@@ -731,6 +760,13 @@ namespace lang
         fn_ret fn_nanoseconds(state *st, aty2 args)
         // unix time since epoch
         {
+            uint64_t size = args.size();
+            if (size != 0)
+            {
+                return make_any<ANY_TYPE_ERROR,errors::str_error>(
+                    "function time-nanoseconds takes exactly no arguments"s
+                );
+            }
             std::chrono::duration curtime = std::chrono::high_resolution_clock::now().time_since_epoch();
             std::chrono::nanoseconds secs = std::chrono::duration_cast<std::chrono::nanoseconds>(curtime);
             mpz_int ret = secs.count();
@@ -986,15 +1022,21 @@ namespace lang
 
         fn_ret fn_getindex(state *st, aty2 args)
         {
-            uint64_t size = args.size();
-            if (size != 2)
+            uint64_t size = args.size(); 
+            if (size != 2 && size != 3)
             {
-                 return make_any<ANY_TYPE_ERROR,errors::str_error>(
-                    "function index takes exactly 2 argument"s
+                return make_any<ANY_TYPE_ERROR,errors::str_error>(
+                    "function index takes 2 or 3 argument"s
                 );            
             }
             if (is_a_any<ANY_TYPE_LIST>(args[0]))
             {
+                if (size != 2)
+                {
+                    return make_any<ANY_TYPE_ERROR,errors::str_error>(
+                        "function index takes exactly 2 argument when first argument is a list"s
+                    );            
+                }
                 std::vector<anything> list = any_fast<std::vector<anything>>(args[0]);
                 size_t listsize = list.size();
                 if (is_a_any<ANY_TYPE_INT>(args[0]))
@@ -1023,7 +1065,19 @@ namespace lang
             else if (is_a_any<ANY_TYPE_TABLE>(args[0]))
             {
                 table_type table = any_fast<table_type>(args[0]);
-                return get_table(table, args[1]);
+                anything got = get_table(table, args[1]);
+                if (size == 2)
+                {
+                    return got;
+                }
+                else if (is_a_any<ANY_TYPE_ERROR>(got))
+                {
+                    return args[2];
+                }
+                else
+                {
+                    return got;
+                }
             }
             else
             {
@@ -1108,13 +1162,20 @@ namespace lang
         fn_ret fn_new_table(state *st, aty2 args)
         {
             uint64_t size = args.size();
-            if (args.size() != 0)
+            if (args.size() % 2 == 1)
             {
                 return make_any<ANY_TYPE_ERROR,errors::str_error>(
-                    "function new-table takes exactly 0 argument"s
+                    "function new-table takes an even number of argument"s
                 ); 
             }
             table_type ret;
+            for (uint64_t i = 0; i < size; i += 2)
+            {
+                ret.push_back(std::make_shared<std::pair<anything, anything>>(std::pair<anything, anything>({
+                    args[i],
+                    args[i+1]
+                })));
+            }
             return make_any<ANY_TYPE_TABLE, table_type>(ret);
         }
 

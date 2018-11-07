@@ -1,8 +1,13 @@
 #include "lang-lib.hpp"
 
-int main()
+int main(int argc, char** argv)
 {
-    std::shared_ptr<std::ifstream> f = std::make_shared<std::ifstream>("lang.ion");
+    if (argc <= 1)
+    {
+        std::cout << "atleast 1 argument is needed" << std::endl;
+        exit(1); 
+    }
+    std::shared_ptr<std::ifstream> f = std::make_shared<std::ifstream>(argv[1]);
     lang::state state;
     state.lex(f);
     state.ast();

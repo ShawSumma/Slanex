@@ -1,1 +1,2 @@
-(print (greater-than 3 2 1))
+(def num-to-bool (new-table 0 false))
+(print (index num-to-bool 0 true))

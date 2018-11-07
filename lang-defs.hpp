@@ -40,6 +40,7 @@ namespace lang
         ANY_TYPE_FUNC,
         ANY_TYPE_ERROR,
         ANY_TYPE_NONE,
+        ANY_TYPE_DATA,
     };
 
     template<typename T>

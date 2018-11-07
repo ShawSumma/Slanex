@@ -151,7 +151,7 @@ namespace lang
                 }
             }
         }
-        return make_any<ANY_TYPE_ERROR, errors::str_error>("fn error"s);
+        return make_any<ANY_TYPE_ERROR, errors::str_error>("get table type error"s);
     }
 
     anything get_table(table_type &table, anything &value)
@@ -177,7 +177,7 @@ namespace lang
         {
             return get_table_type<ANY_TYPE_NONE, none>(table, value);
         }
-        return make_any<ANY_TYPE_ERROR, errors::str_error>("fn error"s);
+        return make_any<ANY_TYPE_ERROR, errors::str_error>("get table error"s);
     }
 
     anything state::load_global(anything &value)
@@ -187,7 +187,7 @@ namespace lang
         {
             return get_table(globals[size-i], value);
         }
-        return make_any<ANY_TYPE_ERROR, errors::str_error>("fn error"s);
+        return make_any<ANY_TYPE_ERROR, errors::str_error>("load global error"s);
     }
 
         void state::set_var(std::string &sval, anything &value)
