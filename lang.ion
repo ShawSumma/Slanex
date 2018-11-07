@@ -1,2 +1,0 @@
-(def num-to-bool (new-table 0 false))
-(print (index num-to-bool 0 true))

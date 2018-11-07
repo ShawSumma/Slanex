@@ -15,6 +15,7 @@ namespace lang
         fn_ret fn_type_of(state *, aty2);
         fn_ret fn_def_str(state *, aty2);
         fn_ret fn_list(state *, aty2);
+        fn_ret fn_to_str(state *, aty2);
         table_type generate();
     }
 }

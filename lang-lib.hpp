@@ -44,6 +44,10 @@ namespace lang
             {
                 return false;
             }
+            if (is_a_any<ANY_TYPE_USER_FN>(left))
+            {
+                return any_fast<user_fn>(left).op_place == any_fast<user_fn>(right).op_place;
+            }
             return false;
         }
 
@@ -265,6 +269,22 @@ namespace lang
                 }
                 return make_any<ANY_TYPE_STR, std::string>(ret);;
             }
+            else if (is_a_any<ANY_TYPE_LIST>(args[0]))
+            {
+                std::vector<anything> ret = any_fast<std::vector<anything>>(args[0]);
+                for (uint64_t i = 1; i < size; i++)
+                {
+                    if (is_a_any<ANY_TYPE_LIST>(args[i]))
+                    {
+                        return make_any<ANY_TYPE_ERROR,errors::str_error>(
+                            errors::type_error("add", {"list"})
+                        );
+                    }
+                    std::vector<anything> insert = any_fast<std::vector<anything>>(args[i]); 
+                    ret.insert(ret.end(), insert.begin(), insert.end());
+                }
+                return make_any<ANY_TYPE_LIST, std::vector<anything>>(ret);;
+            }
             else if (is_a_any<ANY_TYPE_INT>(args[0]) ||is_a_any<ANY_TYPE_RAT>(args[0]))
             // numeric addition
             {
@@ -360,9 +380,6 @@ namespace lang
                     // multiply how many times by the argument
                 }
                 uint64_t arrsize = ori.size();
-                uint64_t alloccount = dotimes * arrsize;
-                ret.resize(alloccount);
-                // this makes it faster as some calls to string add would need to memory
                 for (uint64_t i = 0; i < dotimes; i++)
                 {
                     ret += ori;
@@ -395,10 +412,6 @@ namespace lang
                     dotimes *= uint64_t(any_fast<mpz_int>(args[i]));
                 }
                 uint64_t arrsize = ori.size();
-                uint64_t alloccount = dotimes * arrsize;
-                ret.resize(alloccount);
-                // makes the list have enough room for everything
-                // the alternative makes each call to insert check memory more
                 std::vector<anything>::iterator beg = ori.begin();
                 std::vector<anything>::iterator end = ori.end();
                 // the original stays the same
@@ -408,7 +421,9 @@ namespace lang
                     // std way to merge two lists (std::vector)
                 }
                 ret.shrink_to_fit();
+                // ret.
                 // reduce memory usage
+                anything got = fn_to_str(st, ret);
                 return make_any<ANY_TYPE_LIST, std::vector<anything>>(ret);
             }
             else if (is_a_any<ANY_TYPE_INT>(args[0]) || is_a_any<ANY_TYPE_RAT>(args[0]))
@@ -505,6 +520,10 @@ namespace lang
                     ss << "<function>";
                     // cannot display functions, use a name instead
                 }
+                else if (is_a_any<ANY_TYPE_USER_FN>(cur))
+                {
+                    ss << "<function>";
+                }
                 else if (is_a_any<ANY_TYPE_BOOL>(cur))
                 {
                     ss << (any_fast<bool>(cur) ? "true" : "false");
@@ -575,7 +594,7 @@ namespace lang
                 // cannot change type given into string
                 {
                     return make_any<ANY_TYPE_ERROR,errors::str_error>(
-                        errors::type_error("mul", {"number", "rational", "string", "function", "list", "table", "boolean"})
+                        errors::type_error("to-str", {"number", "rational", "string", "function", "list", "table", "boolean"})
                     );  
                 }
             }
@@ -627,6 +646,14 @@ namespace lang
             else if (is_a_any<ANY_TYPE_TABLE>(cur))
             {
                 ss << "table";
+            }
+            else if (is_a_any<ANY_TYPE_DATA>(cur))
+            {
+                ss << "data";
+            }
+            else if (is_a_any<ANY_TYPE_USER_FN>(cur))
+            {
+                ss << "function";
             }
             else
             // it was an unknown type
@@ -1096,13 +1123,9 @@ namespace lang
                     errors::need_more_args("ipow", 0)
                 ); 
             }
-            if (is_a_any<ANY_TYPE_INT>(args[0]) || is_a_any<ANY_TYPE_RAT>(args[0]))
+            if (is_a_any<ANY_TYPE_INT>(args[0]))
             {
-                mpz_int whole;
-                if (is_a_any<ANY_TYPE_INT>(args[0]))
-                {
-                    whole = any_fast<mpz_int>(args[0]);
-                }
+                mpz_int whole = any_fast<mpz_int>(args[0]);
                 mpz_int ret = 1;
                 for (uint64_t pl = 1; pl < size; pl++)
                 {
@@ -1124,6 +1147,31 @@ namespace lang
                     }
                 }
                 return make_any<ANY_TYPE_INT, mpz_int>(whole); 
+            }
+            else if (is_a_any<ANY_TYPE_RAT>(args[0]))
+            {
+                mpq_rational rat = any_fast<mpq_rational>(args[0]);
+                mpq_rational temp = 1;
+                for (uint64_t pl = 1; pl < size; pl++)
+                {
+                    if (is_a_any<ANY_TYPE_INT>(args[pl]))
+                    {
+                        mpz_int dot = any_fast<mpz_int>(args[pl]);
+                        for (uint64_t i = 0; i < dot; i++)
+                        {
+                            temp *= rat;
+                        }
+                        rat = temp;
+                        temp = 1;
+                    }
+                    else
+                    {
+                        return make_any<ANY_TYPE_ERROR,errors::str_error>(
+                            errors::type_error("pow", {"number"})
+                        ); 
+                    }
+                }
+                return make_any<ANY_TYPE_RAT, mpq_rational>(rat); 
             }
             else
             {

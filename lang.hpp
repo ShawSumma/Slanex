@@ -32,6 +32,13 @@ namespace lang
         OPCODE_TYPE_JMP_IF_NOT,
         OPCODE_TYPE_JMP_IF,
         OPCODE_TYPE_JMP,
+        OPCODE_TYPE_DEFUN,
+        OPCODE_TYPE_RET,
+    };
+
+    struct user_fn
+    {
+        uint64_t op_place;
     };
 
     struct anything
@@ -73,6 +80,7 @@ namespace lang
             generate()
         };
         std::vector<anything> helpers;
+        std::vector<uint64_t> ret_stack;
         node root;
         anything load_global(anything &);
         void set_var(std::string &, anything &);
@@ -85,8 +93,8 @@ namespace lang
     std::set<std::string> special_funcs = {
         "if",
         "def",
-        "cond",
         "while",
+        "fn",
     };
 
     bool none::operator ==(none n)
@@ -219,8 +227,8 @@ namespace lang
         // std::vector<uint64_t> prof(opcodes.size());
         // std::vector<uint64_t> times(opcodes.size());
     
-        std::stack<anything> vm_stack;
-        vm_stack.push(make_any<ANY_TYPE_ERROR, errors::str_error>("fn error"s));
+        std::vector<anything> vm_stack;
+        vm_stack.push_back(make_any<ANY_TYPE_ERROR, errors::str_error>("fn error"s));
         uint64_t size = opcodes.size();
         uint64_t place = 0;
         while (place < size)
@@ -232,13 +240,20 @@ namespace lang
                 errors.top().show_error();
                 exit(1);
             }
-            // std::cout << vm_stack.top().type().name() << std::endl;
+            // std::cout << place << std::endl;
             opcode op = opcodes[place];
             switch (op.type)
             {
+                case OPCODE_TYPE_RET:
+                {
+                    // std::cout << "implement ret" << std::endl;
+                    // exit(1);
+                    place = ret_stack[ret_stack.size()-1];
+                    ret_stack.pop_back();
+                }
                 case OPCODE_TYPE_PUSH_VAL:
                 {
-                    vm_stack.push(helpers[op.helper]);
+                    vm_stack.push_back(helpers[op.helper]);
                     break;
                 }
                 case OPCODE_TYPE_PUSH_NAME:
@@ -252,54 +267,95 @@ namespace lang
                         {
                             errstr += ": "s + any_fast<std::string>(helpers[op.helper]);
                         }
+                        else
+                        {
+                            std::vector<anything> any = {
+                                helpers[op.helper]
+                            };
+                            anything got = lib::fn_to_str(this, any);
+                            if (is_a_any<ANY_TYPE_ERROR>(got))
+                            {
+                                errstr = "";
+                                errors.push(any_fast<errors::str_error>(got));
+                                break;
+                            }
+                            else
+                            {
+                                errstr += " ";
+                                errstr += any_fast<std::string>(got);
+                            }
+                        }
                         errors.push(errors::str_error(errstr));
                         break;
                     }
                     // std::cout << value.type << std::endl;
                     // std::cout << typeid(fn_type).hash_code() << std::endl;
                     // std::cout <<( value.type == ANY_TYPE_ERROR) << std::endl;
-                    vm_stack.push(value);
+                    vm_stack.push_back(value);
                     break;
                 }
                 case OPCODE_TYPE_FUNC_CALL:
                 {
-                    std::vector<anything> args(op.helper);
-                    for (uint64_t i = 1; i <= op.helper; i++)
+                    anything fncall = vm_stack[vm_stack.size()-1-op.helper];
+                    // std::cout << vm_stack.size()-1-op.helper << std::endl;
+                    // std::vector<anything> any = {
+                    //     fncall
+                    // };
+                    // anything got = lib::fn_to_str(this, any);
+                    // if (is_a_any<ANY_TYPE_ERROR>(got))
+                    // {
+                    //     errors.push(any_fast<errors::str_error>(got));
+                    //     break;
+                    // }
+                    // else
+                    // {
+                    //     std::cout << any_fast<std::string>(got) << std::endl;;
+                    // }
+                    if (is_a_any<ANY_TYPE_FUNC>(fncall))
                     {
-                        args[op.helper-i] = vm_stack.top();
-                        vm_stack.pop();
+                        std::vector<anything> args(op.helper);
+                        for (uint64_t i = 1; i <= op.helper; i++)
+                        {
+                            args[op.helper-i] = vm_stack[vm_stack.size()-1];
+                            vm_stack.pop_back();
+                        }
+                        fn_type fn = any_fast<fn_type>(fncall);
+                        fn_ret got = fn(this, args);
+                        if (is_a_any<ANY_TYPE_ERROR>(got))
+                        {
+                            errors.push(any_fast<errors::str_error>(got));
+                            break;
+                        }
+                        vm_stack[vm_stack.size()-1] = got;
                     }
-                    // std::cout << "fn: " << op.helper << std::endl;
-                    anything fncall = vm_stack.top();
-                    // vm_stack.pop();
-                    if (!is_a_any<ANY_TYPE_FUNC>(fncall))
+                    else if (is_a_any<ANY_TYPE_USER_FN>(fncall))
+                    {
+                        std::vector<anything> args(op.helper);
+                        for (uint64_t i = 1; i <= op.helper; i++)
+                        {
+                            args[op.helper-i] = vm_stack[vm_stack.size()-1];
+                            vm_stack.pop_back();
+                        }
+                        user_fn fn = any_fast<user_fn>(fncall);
+                        ret_stack.push_back(place);
+                        place = fn.op_place;
+                    }
+                    else 
                     {
                         errors.push(errors::str_error("cannot call anything other than a function"));
-                        break;
                     }
-                    fn_type fn = any_fast<fn_type>(fncall);
-                    // std::cout << "calling " << place << std::endl;
-                    fn_ret got = fn(this, args);
-                    // std::cout << "done" << std::endl;
-                    if (is_a_any<ANY_TYPE_ERROR>(got))
-                    {
-                        // errors.push(errors::str_error("function returned error"));
-                        errors.push(any_fast<errors::str_error>(got));
-                        break;
-                    }
-                    vm_stack.top() = got;
                     break;
                 }
                 case OPCODE_TYPE_POP:
                 {
-                    vm_stack.pop();
+                    vm_stack.pop_back();
                     // std::cout << "pop" << std::endl;
                     break;
                 }
                 case OPCODE_TYPE_JMP_IF:
                 {
-                    anything val = vm_stack.top();
-                    vm_stack.pop();
+                    anything val = vm_stack[vm_stack.size()-1];
+                    vm_stack.pop_back();
                     if (is_a_any<ANY_TYPE_BOOL>(val))
                     {
                         if (any_fast<bool>(val))
@@ -317,8 +373,8 @@ namespace lang
                 }
                 case OPCODE_TYPE_JMP_IF_NOT:
                 {
-                    anything val = vm_stack.top();
-                    vm_stack.pop();
+                    anything val = vm_stack[vm_stack.size()-1];
+                    vm_stack.pop_back();
                     if (is_a_any<ANY_TYPE_BOOL>(val))
                     {
                         if (!any_fast<bool>(val))
@@ -332,6 +388,13 @@ namespace lang
                         uint64_t target = op.helper;
                         place = target;
                     }
+                    break;
+                }
+                case OPCODE_TYPE_DEFUN:
+                {
+                    user_fn f;
+                    f.op_place = op.helper;
+                    vm_stack.push_back(make_any<ANY_TYPE_USER_FN, user_fn>(f));
                     break;
                 }
                 case OPCODE_TYPE_JMP:
@@ -452,6 +515,35 @@ namespace lang
                     std::cout << "def takes 2 arguments" << std::endl;
                     exit(1);  
                 }
+            }
+            else if (name == "fn")
+            {
+                if (croot.children.size() != 2)
+                {
+                    std::cout << "fn takes 2 or 3 args" << std::endl;
+                    exit(1);
+                }
+                uint64_t beginpos = opcodes.size();
+
+                opcode op;
+                op.type = OPCODE_TYPE_JMP;
+                opcodes.push_back(op);
+
+                root = croot.children[1];
+                state::comp();
+
+
+                op.type = OPCODE_TYPE_RET;
+                op.helper = 0;
+                opcodes.push_back(op);
+
+                opcodes[beginpos].helper = opcodes.size()-1;
+
+                op.type = OPCODE_TYPE_DEFUN;
+                op.helper = beginpos;
+                opcodes.push_back(op);
+                // std::cout << beginpos << "\t" << opcodes.size() << std::endl;
+                // helpers.push_back(beginpos);s
             }
             else if (name == "while")
             {

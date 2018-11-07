@@ -26,6 +26,7 @@ namespace lang
     struct nil;
     struct node;
     struct anything;
+    struct user_fn;
 
     using table_type = std::vector<std::shared_ptr<std::pair<anything, anything>>>;
 
@@ -38,6 +39,7 @@ namespace lang
         ANY_TYPE_TABLE,
         ANY_TYPE_BOOL,
         ANY_TYPE_FUNC,
+        ANY_TYPE_USER_FN,
         ANY_TYPE_ERROR,
         ANY_TYPE_NONE,
         ANY_TYPE_DATA,

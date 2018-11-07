@@ -17,7 +17,7 @@ int main(int argc, char** argv)
     uint64_t pl = 0;
     for (lang::opcode o: state.opcodes)
     {
-        // std::cout << pl << "\t" << o.type << "\t" << o.helper << std::endl;
+        // std::cout << pl << ": " << o.type << "\t" << o.helper << std::endl;
         pl ++;
     }
     // std::cout << std::endl;
