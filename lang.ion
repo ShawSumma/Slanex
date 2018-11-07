@@ -1,0 +1,6 @@
+(def time-lib (get-time))
+(def begin ((index time-lib "time-nanoseconds")))
+((index time-lib "sleep-microseconds") 0)
+((index time-lib "sleep-microseconds") 0)
+(def end ((index time-lib "time-nanoseconds")))
+(print (sub end begin))
