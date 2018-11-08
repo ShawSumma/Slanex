@@ -37,6 +37,7 @@ namespace lang
         OPCODE_TYPE_BEGIN_SPACE = 9,
         OPCODE_TYPE_END_SPACE = 10,
         OPCODE_TYPE_NOP = 11,
+        OPCODE_TYPE_FUNC_CALL_TOP = 12,
     };
 
     struct user_fn
@@ -87,6 +88,7 @@ namespace lang
         std::vector<uint64_t> ret_stack;
         node root;
         anything load_global(anything &);
+        uint64_t root_slashes = 0;
         void set_var(std::string &, anything &);
         bool run(uint64_t, uint64_t);
         void lex(std::istream &is, bool);
@@ -239,6 +241,7 @@ namespace lang
                 return true;
             }
 
+            // std::cout << "stack: "<< any_fast<string>(aux::to_string(vm_stack)) << std::endl;
             opcode op = opcodes[place];
             switch (op.type)
             {
@@ -280,6 +283,7 @@ namespace lang
                 case OPCODE_TYPE_FUNC_CALL:
                 {
                     anything fncall = vm_stack[vm_stack.size()-1-op.helper];
+                    // std::cout << int64_t(vm_stack.size()-1-op.helper) << std::endl;
                     if (int64_t(vm_stack.size()-1-op.helper) < 0)
                     {
                         errors.push(errors::str_error("ran out of stack in function call"s));
@@ -318,7 +322,44 @@ namespace lang
                     }
                     else 
                     {
-                        errors.push(errors::str_error("cannot call anything other than a function"));
+                        // std::cout << fncall.type << std::endl;
+                        errors.push(errors::str_error("cannot call a "s + aux::get_type(fncall)));
+                    }
+                    break;
+                }
+                case OPCODE_TYPE_FUNC_CALL_TOP:
+                {
+                    anything fncall = vm_stack[vm_stack.size()-1];
+                    // std::cout <<vm_stack.size()-1 << std::endl;
+                        // std::cout << fncall.type << std::endl;
+                    // vm_stack.pop_back();
+                    if (int64_t(vm_stack.size()-1-op.helper) < 0)
+                    {
+                        errors.push(errors::str_error("ran out of stack in function call"s));
+                        break;
+                    }
+                    if (is_a_any<ANY_TYPE_FUNC>(fncall))
+                    {
+                        vm_stack.pop_back();
+                        std::vector<anything> args(op.helper);
+                        for (uint64_t i = 1; i <= op.helper; i++)
+                        {
+                            args[op.helper-i] = vm_stack[vm_stack.size()-1];
+                            vm_stack.pop_back();
+                        }
+                        fn_type fn = any_fast<fn_type>(fncall);
+                        fn_ret got = fn(this, args);
+                        if (is_a_any<ANY_TYPE_ERROR>(got))
+                        {
+                            errors.push(any_fast<errors::str_error>(got));
+                            break;
+                        }
+                        vm_stack.push_back(got);
+                    }
+                    else 
+                    {
+                        std::cout << fncall.type << std::endl;
+                        errors.push(errors::str_error("cannot call a "s + aux::get_type(fncall)));
                     }
                     break;
                 }
@@ -434,6 +475,7 @@ namespace lang
             node croot = root;
             std::string name = "";
             uint64_t i = 0;
+            uint64_t count_slash = 0;
             for (node n: croot.children)
             {
                 if (i == 0 && n.tok.size() > 0 && n.tok[0].type == TOKEN_TYPE_NAME)
@@ -450,9 +492,12 @@ namespace lang
             }
             if (name == "")
             {
+                
                 opcode op;
                 op.type = OPCODE_TYPE_FUNC_CALL;
-                op.helper = size-1;
+                op.helper = size-1-root_slashes*2;
+                // std::cout << root_slashes << "\t" << size << std::endl;
+                root_slashes = 0;
                 opcodes.push_back(op);
             }
             else if (name == "def")
@@ -487,6 +532,7 @@ namespace lang
                 else
                 {
                     std::cout << "def takes 2 arguments" << std::endl;
+                    root_slashes = 0;
                     return true;
                 }
             }
@@ -495,6 +541,7 @@ namespace lang
                 if (croot.children.size() != 2)
                 {
                     std::cout << "fn takes 2 or 3 args" << std::endl;
+                    root_slashes = 0;
                     return true;
                 }
                 uint64_t beginpos = opcodes.size();
@@ -533,7 +580,6 @@ namespace lang
 
                 opcode op;
                 op.type = OPCODE_TYPE_JMP_IF_NOT;
-                // op.helper = helpers.size();
                 opcodes.push_back(op);
 
                 uint64_t contpos = opcodes.size();
@@ -562,6 +608,7 @@ namespace lang
                 if (croot.children.size() != 3)
                 {
                     std::cout << "def takes 2 arguments" << std::endl;
+                    root_slashes = 0;
                     return true;
                 }
                 root = croot.children[1];
@@ -569,7 +616,6 @@ namespace lang
 
                 opcode op;
                 op.type = OPCODE_TYPE_JMP_IF_NOT;
-                // op.helper = helpers.size();
                 opcodes.push_back(op);
 
                 uint64_t contpos = opcodes.size();
@@ -587,15 +633,34 @@ namespace lang
         }
         else
         {
-            for (token t: root.tok)
+            uint64_t rootsize = root.tok.size();
+            for (uint64_t i = 0; i < rootsize; i++)
             {
+                token t = root.tok[i];
                 if (t.type == TOKEN_TYPE_NAME)
                 {
-                    opcode op;
-                    op.type = OPCODE_TYPE_PUSH_NAME;
-                    op.helper = helpers.size();
-                    opcodes.push_back(op);
-                    helpers.push_back(make_any<ANY_TYPE_STR, std::string>(t.token));
+                    if (t.token == "#")
+                    {
+                        root_slashes ++;
+                        opcode op;
+
+                        op.type = OPCODE_TYPE_PUSH_NAME;
+                        op.helper = helpers.size();
+                        opcodes.push_back(op);
+                        helpers.push_back(make_any<ANY_TYPE_STR, std::string>("index"));
+
+                        op.type = OPCODE_TYPE_FUNC_CALL_TOP;
+                        op.helper = 2;
+                        opcodes.push_back(op);
+                    }
+                    else
+                    {
+                        opcode op;
+                        op.type = OPCODE_TYPE_PUSH_NAME;
+                        op.helper = helpers.size();
+                        opcodes.push_back(op);
+                        helpers.push_back(make_any<ANY_TYPE_STR, std::string>(t.token));
+                    }
                 }
                 else if (t.type == TOKEN_TYPE_INT)
                 {
@@ -624,10 +689,12 @@ namespace lang
                 else
                 {
                     std::cout << "unknown token past ast" << t.token << std::endl;
+                    root_slashes = 0;
                     return true;
                 }
             }
         }
+        // root_slashes = 0;
         return false;
     }
 
@@ -676,6 +743,30 @@ namespace lang
                     return;
                 }
                 got = input();
+            }
+            if (got == ':')
+            {
+                got = input();
+                std::string str;
+                while (isalnum(got)  || got == '-') // [a-zA-Z0-9]+
+                {
+                    str += got;
+                    got = input();
+                }
+                push(str, TOKEN_TYPE_STR);
+            }
+            if (got == '/')
+            {
+                got = input();
+                std::string str;
+                while (isalnum(got)  || got == '-') // [a-zA-Z0-9]+
+                {
+                    str += got;
+                    got = input();
+                }
+                token top = toks[toks.size()-1];
+                push(str, TOKEN_TYPE_STR);
+                push("#", TOKEN_TYPE_NAME);
             }
             if (isalpha(got)) // name, do, and end
             {
