@@ -744,7 +744,7 @@ namespace lang
                 }
                 got = input();
             }
-            if (got == ':')
+            if (got == '\'')
             {
                 got = input();
                 std::string str;

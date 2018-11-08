@@ -22,11 +22,8 @@ use bignums and rationals
 goals right now:
 get withing 5x of CPython speed
 add alot of functions
-add userdata type
 
 things to do later:
-add user defined functions
-make a table constructor
 allow for functions to be table keys
 networking and graphics libraries
 
