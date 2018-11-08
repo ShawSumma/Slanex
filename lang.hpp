@@ -82,15 +82,16 @@ namespace lang
         std::vector<table_type> globals = {
             generate()
         };
+        std::vector<anything> vm_stack;
         std::vector<anything> helpers;
         std::vector<uint64_t> ret_stack;
         node root;
         anything load_global(anything &);
         void set_var(std::string &, anything &);
-        void run();
-        void lex(std::shared_ptr<std::istream> is);
-        void comp();
-        void ast();
+        bool run(uint64_t, uint64_t);
+        void lex(std::istream &is, bool);
+        bool comp();
+        bool ast();
     };
 }
 #include "auxlib/auxlib.hpp"
@@ -226,17 +227,16 @@ namespace lang
             ));
         }
 
-    void state::run()
+    bool state::run(uint64_t place, uint64_t brk)
     {
-        std::vector<anything> vm_stack;
-        uint64_t size = opcodes.size();
-        uint64_t place = 0;
-        while (place < size)
+        // uint64_t size = opcodes.size();
+        while (place != brk)
         {
             if (errors.size() > 0)
             {
                 errors.top().show_error();
-                exit(1);
+                errors.pop();
+                return true;
             }
 
             opcode op = opcodes[place];
@@ -385,11 +385,13 @@ namespace lang
         if (errors.size() > 0)
         {
             errors.top().show_error();
-            exit(1);
+            errors.pop();
+            return true;
         }
+        return false;
     }
 
-    void state::ast()
+    bool state::ast()
     {
         std::vector<node> nodes(1);
         for (token t: toks)
@@ -414,9 +416,10 @@ namespace lang
             }
         }
         root = nodes[0];
+        return false;
     }
 
-    void state::comp()
+    bool state::comp()
     {
         uint64_t toksize = root.tok.size();
         // std::cout << walknode(root) << std::endl;
@@ -427,7 +430,6 @@ namespace lang
             if (size == 0)
             {
                 std::cout << "cannot have empty call" << std::endl;
-                exit(1);
             }
             node croot = root;
             std::string name = "";
@@ -467,7 +469,7 @@ namespace lang
                     if (ch1.tok.size() == 0 || ch1.tok[0].type != TOKEN_TYPE_NAME)
                     {
                         std::cout << "def takes 2 arguments, the first must be a name" << std::endl;
-                        exit(1);
+                        return true;
                     }
                     
                     op.type = OPCODE_TYPE_PUSH_VAL;
@@ -485,7 +487,7 @@ namespace lang
                 else
                 {
                     std::cout << "def takes 2 arguments" << std::endl;
-                    exit(1);  
+                    return true;
                 }
             }
             else if (name == "fn")
@@ -493,7 +495,7 @@ namespace lang
                 if (croot.children.size() != 2)
                 {
                     std::cout << "fn takes 2 or 3 args" << std::endl;
-                    exit(1);
+                    return true;
                 }
                 uint64_t beginpos = opcodes.size();
 
@@ -520,7 +522,7 @@ namespace lang
                 if (croot.children.size() != 3)
                 {
                     std::cout << "def takes 2 arguments" << std::endl;
-                    exit(1);  
+                    return true;
                 }
 
                 uint64_t beginpos = opcodes.size();
@@ -560,7 +562,7 @@ namespace lang
                 if (croot.children.size() != 3)
                 {
                     std::cout << "def takes 2 arguments" << std::endl;
-                    exit(1);  
+                    return true;
                 }
                 root = croot.children[1];
                 state::comp();
@@ -622,19 +624,21 @@ namespace lang
                 else
                 {
                     std::cout << "unknown token past ast" << t.token << std::endl;
-                    exit(1);
+                    return true;
                 }
             }
         }
+        return false;
     }
 
-    void state::lex(std::shared_ptr<std::istream> is)
+    void state::lex(std::istream &in, bool is_repl)
     {
         tokens *ptoks = &toks; // this is so that it can be captured by the lambda
         uint64_t line = 1; // start at line 1
         uint64_t col = 1; // col 1
         uint64_t *line_ptr = &line;
         uint64_t *col_ptr = &col;
+        std::istream *is = &in;
         std::function<char()> input = [is, line_ptr, col_ptr]() mutable -> char
         {
             char ret = is->get();
@@ -667,6 +671,10 @@ namespace lang
             }
             if (got == ' ' || got == '\t' || got == '\n' || got == '\r' || got == ';' || got == ',')
             {
+                if (is_repl && (got == '\n' || got == '\r'))
+                {
+                    return;
+                }
                 got = input();
             }
             if (isalpha(got)) // name, do, and end
