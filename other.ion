@@ -1,7 +1,0 @@
-
-(def its 1000000)
-(def num 1)
-(while (less-than its 0) (do
-    (def its (sub its 1))
-    (def num (add num 1))))
-(print num)

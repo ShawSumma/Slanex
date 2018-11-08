@@ -25,15 +25,18 @@ namespace lang
     
     enum opcode_type
     {
-        OPCODE_TYPE_PUSH_VAL,
-        OPCODE_TYPE_PUSH_NAME,
-        OPCODE_TYPE_POP,
-        OPCODE_TYPE_FUNC_CALL,
-        OPCODE_TYPE_JMP_IF_NOT,
-        OPCODE_TYPE_JMP_IF,
-        OPCODE_TYPE_JMP,
-        OPCODE_TYPE_DEFUN,
-        OPCODE_TYPE_RET,
+        OPCODE_TYPE_PUSH_VAL = 0,
+        OPCODE_TYPE_PUSH_NAME = 1,
+        OPCODE_TYPE_POP = 2,
+        OPCODE_TYPE_FUNC_CALL = 3,
+        OPCODE_TYPE_JMP_IF_NOT = 4,
+        OPCODE_TYPE_JMP_IF = 5,
+        OPCODE_TYPE_JMP = 6,
+        OPCODE_TYPE_DEFUN = 7,
+        OPCODE_TYPE_RET = 8,
+        OPCODE_TYPE_BEGIN_SPACE = 9,
+        OPCODE_TYPE_END_SPACE = 10,
+        OPCODE_TYPE_NOP = 11,
     };
 
     struct user_fn
@@ -208,7 +211,6 @@ namespace lang
                 if (is_a_any<ANY_TYPE_STR>(kvp->first))
                 {
                     std::string name = any_fast<std::string>(kvp->first);
-                    // std::cout << name << std::endl;
                     if (name == sval)
                     {
                         globals[gsizem][i]->second = value;
@@ -223,33 +225,37 @@ namespace lang
 
     void state::run()
     {
-
-        // std::vector<uint64_t> prof(opcodes.size());
-        // std::vector<uint64_t> times(opcodes.size());
-    
         std::vector<anything> vm_stack;
-        vm_stack.push_back(make_any<ANY_TYPE_ERROR, errors::str_error>("fn error"s));
         uint64_t size = opcodes.size();
         uint64_t place = 0;
         while (place < size)
         {
-            // prof[place] ++;
-            // uint64_t time = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now().time_since_epoch()).count();
             if (errors.size() > 0)
             {
                 errors.top().show_error();
                 exit(1);
             }
-            // std::cout << place << std::endl;
+
             opcode op = opcodes[place];
             switch (op.type)
             {
+                case OPCODE_TYPE_NOP:
+                {
+                    break;
+                }
+                case OPCODE_TYPE_BEGIN_SPACE:
+                {
+                    break;
+                }
+                case OPCODE_TYPE_END_SPACE:
+                {
+                    break;
+                }
                 case OPCODE_TYPE_RET:
                 {
-                    // std::cout << "implement ret" << std::endl;
-                    // exit(1);
                     place = ret_stack[ret_stack.size()-1];
                     ret_stack.pop_back();
+                    break;
                 }
                 case OPCODE_TYPE_PUSH_VAL:
                 {
@@ -259,58 +265,21 @@ namespace lang
                 case OPCODE_TYPE_PUSH_NAME:
                 {
                     anything value = load_global(helpers[op.helper]);
-                    // std::cout << helpers[op.helper].type().name() << std::endl;
                     if (is_a_any<ANY_TYPE_ERROR>(value))
                     {
-                        std::string errstr = "no variable named"s;
-                        if (is_a_any<ANY_TYPE_STR>(helpers[op.helper]))
-                        {
-                            errstr += ": "s + any_fast<std::string>(helpers[op.helper]);
-                        }
-                        else
-                        {
-                            std::vector<anything> any = {
-                                helpers[op.helper]
-                            };
-                            anything got = lib::fn_to_str(this, any);
-                            if (is_a_any<ANY_TYPE_ERROR>(got))
-                            {
-                                errstr = "";
-                                errors.push(any_fast<errors::str_error>(got));
-                                break;
-                            }
-                            else
-                            {
-                                errstr += " ";
-                                errstr += any_fast<std::string>(got);
-                            }
-                        }
-                        errors.push(errors::str_error(errstr));
-                        break;
+                        errors.push(errors::str_error("cannot load global"s));
+                        break;  
                     }
-                    // std::cout << value.type << std::endl;
-                    // std::cout << typeid(fn_type).hash_code() << std::endl;
-                    // std::cout <<( value.type == ANY_TYPE_ERROR) << std::endl;
                     vm_stack.push_back(value);
                     break;
                 }
                 case OPCODE_TYPE_FUNC_CALL:
                 {
                     anything fncall = vm_stack[vm_stack.size()-1-op.helper];
-                    // std::cout << vm_stack.size()-1-op.helper << std::endl;
-                    // std::vector<anything> any = {
-                    //     fncall
-                    // };
-                    // anything got = lib::fn_to_str(this, any);
-                    // if (is_a_any<ANY_TYPE_ERROR>(got))
-                    // {
-                    //     errors.push(any_fast<errors::str_error>(got));
-                    //     break;
-                    // }
-                    // else
-                    // {
-                    //     std::cout << any_fast<std::string>(got) << std::endl;;
-                    // }
+                    if (int64_t(vm_stack.size()-1-op.helper) < 0)
+                    {
+                        errors.push(errors::str_error("ran out of stack in function call"s));
+                    }
                     if (is_a_any<ANY_TYPE_FUNC>(fncall))
                     {
                         std::vector<anything> args(op.helper);
@@ -336,9 +305,12 @@ namespace lang
                             args[op.helper-i] = vm_stack[vm_stack.size()-1];
                             vm_stack.pop_back();
                         }
-                        user_fn fn = any_fast<user_fn>(fncall);
+                        // std::cout << "calling user fn" << std::endl;
+                        vm_stack.pop_back();
                         ret_stack.push_back(place);
+                        user_fn fn = any_fast<user_fn>(fncall);
                         place = fn.op_place;
+                        // std::cout << vm_stack.size() << std::endl;
                     }
                     else 
                     {
@@ -404,7 +376,6 @@ namespace lang
                     break;
                 }
             }
-            // times[place] += std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now().time_since_epoch()).count() - time;
             place ++;
         }
         if (errors.size() > 0)
@@ -464,7 +435,6 @@ namespace lang
                     if (special_funcs.count(n.tok[0].token) != 0)
                     {
                         name = n.tok[0].token;
-                        // std::cout << name << std::endl;
                         break;
                     }
                 }
@@ -472,7 +442,6 @@ namespace lang
                 state::comp();
                 i ++;
             }
-            // std::cout << name << std::endl;
             if (name == "")
             {
                 opcode op;
@@ -500,7 +469,6 @@ namespace lang
                     op.type = OPCODE_TYPE_PUSH_VAL;
                     op.helper = helpers.size();
                     opcodes.push_back(op);
-                    // std::cout << ch1.tok[0].token << std::endl;
                     helpers.push_back(make_any<ANY_TYPE_STR, std::string>(ch1.tok[0].token));
 
                     root = croot.children[2];
@@ -532,7 +500,6 @@ namespace lang
                 root = croot.children[1];
                 state::comp();
 
-
                 op.type = OPCODE_TYPE_RET;
                 op.helper = 0;
                 opcodes.push_back(op);
@@ -542,7 +509,6 @@ namespace lang
                 op.type = OPCODE_TYPE_DEFUN;
                 op.helper = beginpos;
                 opcodes.push_back(op);
-                // std::cout << beginpos << "\t" << opcodes.size() << std::endl;
                 // helpers.push_back(beginpos);s
             }
             else if (name == "while")
@@ -582,7 +548,6 @@ namespace lang
                 opcodes.push_back(op);
 
                 uint64_t breakpos = opcodes.size();
-                // std::cout << breakpos << std::endl;
                 opcodes[contpos-1].helper = breakpos-1;
 
             }
@@ -611,7 +576,6 @@ namespace lang
                 opcodes.push_back(op);
 
                 uint64_t breakpos = opcodes.size();
-                // std::cout << breakpos << std::endl;
                 opcodes[contpos-1].helper = breakpos-1;
             }
         }
@@ -619,7 +583,6 @@ namespace lang
         {
             for (token t: root.tok)
             {
-                // std::cout << t.token << std::endl;
                 if (t.type == TOKEN_TYPE_NAME)
                 {
                     opcode op;

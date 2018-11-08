@@ -15,11 +15,11 @@ int main(int argc, char** argv)
     state.comp();
     state.opcodes.pop_back();
     uint64_t pl = 0;
-    for (lang::opcode o: state.opcodes)
-    {
-        // std::cout << pl << ": " << o.type << "\t" << o.helper << std::endl;
-        pl ++;
-    }
+    // for (lang::opcode o: state.opcodes)
+    // {
+    //    std::cout << pl << ": " << o.type << "\t" << o.helper << std::endl;
+    //     pl ++;
+    // }
     // std::cout << std::endl;
     state.run();
 }

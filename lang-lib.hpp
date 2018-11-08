@@ -40,14 +40,6 @@ namespace lang
             {
                 return list_compare(any_fast<std::vector<anything>>(left), any_fast<std::vector<anything>>(right));
             }
-            if (is_a_any<ANY_TYPE_DATA>(left))
-            {
-                return false;
-            }
-            if (is_a_any<ANY_TYPE_USER_FN>(left))
-            {
-                return any_fast<user_fn>(left).op_place == any_fast<user_fn>(right).op_place;
-            }
             return false;
         }
 
@@ -97,9 +89,8 @@ namespace lang
             if (!is_a_any<ANY_TYPE_STR>(strin))
             // if it was an error
             {
-                return make_any<ANY_TYPE_ERROR,errors::str_error>(
-                    "print could not convert it's argumets to strings"s
-                );
+                // std::cout << "io error" << std::endl;
+                return strin;
                 // it should be a string
             }
             std::cout << any_fast<std::string>(strin);
@@ -1324,37 +1315,6 @@ namespace lang
             return make_any<ANY_TYPE_NONE, none>(none());
         }
 
-        fn_ret fn_get_lib_time(state *st, aty2 args)
-        {
-            uint64_t size = args.size();
-            if (args.size() != 0)
-            {
-                return make_any<ANY_TYPE_ERROR,errors::str_error>(
-                    "function get-time takes exactly 0 argument"s
-                ); 
-            }
-            table_type ret;
-            table_type *ret_ptr = &ret;
-            std::function<void(std::string, fn_type)> regester = [ret_ptr](std::string name, fn_type fn) -> void
-            {
-                ret_ptr->push_back(std::make_shared<std::pair<anything, anything>>(std::pair<anything, anything>({
-                    make_any<ANY_TYPE_STR, std::string>(name),
-                    make_any<ANY_TYPE_FUNC, fn_type>(std::function<fn_ret(state *, aty2)>(fn))
-                })));
-            };
-
-            regester("time-seconds", lib::fn_seconds);
-            regester("sleep-seconds", lib::fn_sleep_seconds);
-            regester("time-milliseconds", lib::fn_milliseconds);
-            regester("sleep-milliseconds", lib::fn_sleep_milliseconds);
-            regester("time-microseconds", lib::fn_microseconds);
-            regester("sleep-microseconds", lib::fn_sleep_microseconds);
-            regester("time-nanoseconds", lib::fn_nanoseconds);
-            regester("sleep-nanoseconds", lib::fn_sleep_nanoseconds);
-
-            return make_any<ANY_TYPE_TABLE, table_type>(ret); 
-        }
-
         fn_ret fn_settable(state *st, aty2 args)
         {
             uint64_t size = args.size();
@@ -1450,10 +1410,120 @@ namespace lang
             return  make_any<ANY_TYPE_TABLE, table_type>(table);
         }
 
-        // fn_ret set_table(state *st, aty2 args)
-        // {
 
-        // }
+        fn_ret fn_merge_globals(state *st, aty2 args)
+        {
+            uint64_t place = st->globals.size()-1;
+            for (anything a: args)
+            {
+                if (!is_a_any<ANY_TYPE_TABLE>(a))
+                {
+                    return make_any<ANY_TYPE_ERROR,errors::str_error>(
+                        errors::type_error("merge", {"table"})
+                    );
+                }
+                table_type other = any_fast<table_type>(a);
+                st->globals[place].insert(st->globals[place].end(), other.begin(), other.end());
+            }
+            return make_any<ANY_TYPE_NONE, none>(none());
+        }
+
+        fn_ret fn_get_lib_math(state *st, aty2 args)
+        {
+            uint64_t size = args.size();
+            if (args.size() != 0)
+            {
+                return make_any<ANY_TYPE_ERROR,errors::str_error>(
+                    "function get-time takes exactly 0 argument"s
+                ); 
+            }
+            table_type ret;
+            table_type *ret_ptr = &ret;
+            std::function<void(std::string, fn_type)> regester = [ret_ptr](std::string name, fn_type fn) -> void
+            {
+                ret_ptr->push_back(std::make_shared<std::pair<anything, anything>>(std::pair<anything, anything>({
+                    make_any<ANY_TYPE_STR, std::string>(name),
+                    make_any<ANY_TYPE_FUNC, fn_type>(std::function<fn_ret(state *, aty2)>(fn))
+                })));
+            };
+
+            regester("add", lib::fn_add);
+            regester("sub", lib::fn_sub);
+            regester("mul", lib::fn_mult);
+            regester("div", lib::fn_fdiv);
+            regester("do", lib::fn_do);
+            regester("greater-than", lib::fn_greater_than);
+            regester("less-than", lib::fn_less_than);
+            regester("greater-than-equ", lib::fn_greater_or_equ);
+            regester("less-than-equ", lib::fn_less_or_equ);
+            regester("equal", lib::fn_all_equal);
+            regester("pow", lib::fn_ipow);
+
+            return make_any<ANY_TYPE_TABLE, table_type>(ret); 
+        }
+
+        fn_ret fn_get_lib_time(state *st, aty2 args)
+        {
+            uint64_t size = args.size();
+            if (args.size() != 0)
+            {
+                return make_any<ANY_TYPE_ERROR,errors::str_error>(
+                    "function get-time takes exactly 0 argument"s
+                ); 
+            }
+            table_type ret;
+            table_type *ret_ptr = &ret;
+            std::function<void(std::string, fn_type)> regester = [ret_ptr](std::string name, fn_type fn) -> void
+            {
+                ret_ptr->push_back(std::make_shared<std::pair<anything, anything>>(std::pair<anything, anything>({
+                    make_any<ANY_TYPE_STR, std::string>(name),
+                    make_any<ANY_TYPE_FUNC, fn_type>(std::function<fn_ret(state *, aty2)>(fn))
+                })));
+            };
+
+            regester("time-seconds", lib::fn_seconds);
+            regester("sleep-seconds", lib::fn_sleep_seconds);
+            regester("time-milliseconds", lib::fn_milliseconds);
+            regester("sleep-milliseconds", lib::fn_sleep_milliseconds);
+            regester("time-microseconds", lib::fn_microseconds);
+            regester("sleep-microseconds", lib::fn_sleep_microseconds);
+            regester("time-nanoseconds", lib::fn_nanoseconds);
+            regester("sleep-nanoseconds", lib::fn_sleep_nanoseconds);
+
+            return make_any<ANY_TYPE_TABLE, table_type>(ret); 
+        }
+
+
+        fn_ret fn_get_lib_table(state *st, aty2 args)
+        {
+            uint64_t size = args.size();
+            if (args.size() != 0)
+            {
+                return make_any<ANY_TYPE_ERROR,errors::str_error>(
+                    "function get-time takes exactly 0 argument"s
+                ); 
+            }
+            table_type ret;
+            table_type *ret_ptr = &ret;
+            std::function<void(std::string, fn_type)> regester = [ret_ptr](std::string name, fn_type fn) -> void
+            {
+                ret_ptr->push_back(std::make_shared<std::pair<anything, anything>>(std::pair<anything, anything>({
+                    make_any<ANY_TYPE_STR, std::string>(name),
+                    make_any<ANY_TYPE_FUNC, fn_type>(std::function<fn_ret(state *, aty2)>(fn))
+                })));
+            };
+
+            regester("len-of", lib::fn_len_of);
+            regester("get-time", lib::fn_get_lib_time);
+            regester("append", lib::fn_settable);
+            regester("table", lib::fn_new_table);
+            regester("list", lib::fn_list);
+            regester("vars", lib::fn_getvars);
+            regester("index", lib::fn_getindex);
+
+            return make_any<ANY_TYPE_TABLE, table_type>(ret); 
+        }
+
 
     }
 
@@ -1471,29 +1541,17 @@ namespace lang
         };
 
         regester("print", lib::fn_print);
-        regester("add", lib::fn_add);
-        regester("sub", lib::fn_sub);
-        regester("mul", lib::fn_mult);
-        regester("div", lib::fn_fdiv);
-        regester("do", lib::fn_do);
-        regester("greater-than", lib::fn_greater_than);
-        regester("less-than", lib::fn_less_than);
-        regester("greater-than-equ", lib::fn_greater_or_equ);
-        regester("less-than-equ", lib::fn_less_or_equ);
-        regester("equal", lib::fn_all_equal);
         regester("to-str", lib::fn_to_str);
-        regester("len-of", lib::fn_len_of);
+
+        regester("merge", lib::fn_merge_globals);
+        regester("lib-math", lib::fn_get_lib_math);
+        regester("lib-list", lib::fn_get_lib_table);
+        regester("lib-version", lib::fn_version_no);
+        regester("lib-time", lib::fn_get_lib_time);
+
         regester("type-of", lib::fn_type_of);
         regester("def-str", lib::fn_def_str);
-        regester("list", lib::fn_list);
-        regester("vars", lib::fn_getvars);
-        regester("index", lib::fn_getindex);
-        regester("get-version", lib::fn_version_no);
-        regester("get-time", lib::fn_get_lib_time);
-        regester("pow", lib::fn_ipow);
-        regester("append", lib::fn_settable);
-        regester("new-table", lib::fn_new_table);
-
+    
         ret_ptr->push_back(std::make_shared<std::pair<anything, anything>>(std::pair<anything, anything>({
                 make_any<ANY_TYPE_STR, std::string>("true"),
                 make_any<ANY_TYPE_BOOL, bool>(true)

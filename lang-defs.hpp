@@ -32,17 +32,17 @@ namespace lang
 
     enum any_type
     {
-        ANY_TYPE_INT,
-        ANY_TYPE_RAT,
-        ANY_TYPE_STR,
-        ANY_TYPE_LIST,
-        ANY_TYPE_TABLE,
-        ANY_TYPE_BOOL,
-        ANY_TYPE_FUNC,
-        ANY_TYPE_USER_FN,
-        ANY_TYPE_ERROR,
-        ANY_TYPE_NONE,
-        ANY_TYPE_DATA,
+        ANY_TYPE_INT = 0,
+        ANY_TYPE_RAT = 1,
+        ANY_TYPE_STR = 2,
+        ANY_TYPE_LIST = 3,
+        ANY_TYPE_TABLE = 4,
+        ANY_TYPE_BOOL = 5,
+        ANY_TYPE_FUNC = 6,
+        ANY_TYPE_USER_FN = 7,
+        ANY_TYPE_ERROR = 8,
+        ANY_TYPE_NONE = 9,
+        ANY_TYPE_DATA = 10,
     };
 
     template<typename T>
