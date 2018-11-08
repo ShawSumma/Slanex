@@ -92,7 +92,10 @@ namespace lang
         void comp();
         void ast();
     };
-
+}
+#include "auxlib/auxlib.hpp"
+namespace lang
+{
     std::set<std::string> special_funcs = {
         "if",
         "def",
@@ -106,7 +109,7 @@ namespace lang
     }
     
     template<typename T>
-    T any_fast(anything &a)
+    T any_fast(anything a)
     {
         return *std::static_pointer_cast<T>(a.val);
     }
@@ -151,14 +154,14 @@ namespace lang
     anything get_table_type(table_type &table, anything &value)
     {
         T cmp = any_fast<T>(value);
-        for (std::shared_ptr<std::pair<anything, anything>> kvp: table)
+        for (std::pair<anything, anything> kvp: table)
         {
-            if (is_a_any<Tc>(kvp->first))
+            if (is_a_any<Tc>(kvp.first))
             {
-                T name = any_fast<T>(kvp->first);
+                T name = any_fast<T>(kvp.first);
                 if (cmp == name)
                 {
-                    return kvp->second;
+                    return kvp.second;
                 }
             }
         }
@@ -207,18 +210,18 @@ namespace lang
             uint64_t size = globals[gsizem].size();
             for (uint64_t i = 0; i < size; i++)
             {
-                std::shared_ptr<std::pair<anything, anything>> kvp = globals[gsizem][i];
-                if (is_a_any<ANY_TYPE_STR>(kvp->first))
+                std::pair<anything, anything> kvp = globals[gsizem][i];
+                if (is_a_any<ANY_TYPE_STR>(kvp.first))
                 {
-                    std::string name = any_fast<std::string>(kvp->first);
+                    std::string name = any_fast<std::string>(kvp.first);
                     if (name == sval)
                     {
-                        globals[gsizem][i]->second = value;
+                        globals[gsizem][i].second = value;
                         return;
                     }
                 }
             }
-            globals[gsizem].push_back(std::make_shared<std::pair<anything, anything>>(
+            globals[gsizem].push_back(std::pair<anything, anything>(
                 std::pair<anything, anything>(make_any<ANY_TYPE_STR, std::string>(sval), value)
             ));
         }
@@ -267,7 +270,8 @@ namespace lang
                     anything value = load_global(helpers[op.helper]);
                     if (is_a_any<ANY_TYPE_ERROR>(value))
                     {
-                        errors.push(errors::str_error("cannot load global"s));
+                        std::string unkname = any_fast<std::string>(aux::to_string({helpers[op.helper]}));
+                        errors.push(errors::str_error("cannot load global "s + unkname));
                         break;  
                     }
                     vm_stack.push_back(value);

@@ -1,5 +1,5 @@
 #pragma once
-#include "lang-lib-defs.hpp"
+#include "lang-defs.hpp"
 
 namespace lang
 {

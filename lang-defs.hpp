@@ -12,7 +12,7 @@
 #include <stack>
 #include <set>
 // #include <boost/any.hpp>
-// #include <boost/optional.hpp>
+#include <boost/optional.hpp>
 #include <boost/multiprecision/gmp.hpp>
 
 using namespace std::literals;
@@ -28,7 +28,7 @@ namespace lang
     struct anything;
     struct user_fn;
 
-    using table_type = std::vector<std::shared_ptr<std::pair<anything, anything>>>;
+    using table_type = std::vector<std::pair<anything, anything>>;
 
     enum any_type
     {
@@ -46,7 +46,7 @@ namespace lang
     };
 
     template<typename T>
-    T any_fast(anything &);
+    T any_fast(anything);
     template<typename T>
     T any_fast_ptr(anything &);
     template<any_type Tc, typename T>
@@ -62,4 +62,15 @@ namespace lang
     anything get_table(table_type &, anything &);
     template<any_type Tc, typename T>
     anything get_table_type(table_type &, anything &);
+
+    using var = anything;
+    using integer = mpz_int;
+    using rational = mpq_rational;
+    using string = std::string;
+    using list = std::vector<var>;
+    using pair = std::pair<var, var>;
+    using table = table_type;
+    using func = fn_type;
+    using userfn = user_fn;
+    using boolean = bool;
 }

@@ -1,4 +1,5 @@
-#include "lang-lib.hpp"
+// #include "lang-lib.hpp"
+#include "lang.hpp"
 
 int main(int argc, char** argv)
 {
@@ -14,12 +15,5 @@ int main(int argc, char** argv)
     // std::cout << lang::walknode(state.root) << std::endl;
     state.comp();
     state.opcodes.pop_back();
-    uint64_t pl = 0;
-    // for (lang::opcode o: state.opcodes)
-    // {
-    //    std::cout << pl << ": " << o.type << "\t" << o.helper << std::endl;
-    //     pl ++;
-    // }
-    // std::cout << std::endl;
     state.run();
 }
